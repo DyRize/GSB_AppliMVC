@@ -3,6 +3,11 @@ Application GSB pour l'épreuve E4
 
 Après téléchargement du projet, créer un Virtualhost nommé "gsb" pointant directement sur la racine du projet.
 Afin de créer et remplir la base, le script complet "gsb_frais.sql" se trouve sous le dossier sql du projet.
+Afin de créer l'utilisateur userGsb, il faut exécuter le script "gsb_user.sql" se trouvant sous le dossier du sql du projet.
+
+L'utilisateur pour se connecter à la base de données est:
+  - login: userGsb
+  - password: secret
 
 Voici quelques comptes visiteur afin de réaliser des tests:
   - David Andre
