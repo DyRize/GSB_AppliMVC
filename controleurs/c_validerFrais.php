@@ -1,0 +1,140 @@
+<?php
+
+/**
+ * Gestion de la Validation des frais
+ *
+ * PHP Version 7
+ *
+ * @category  PPE
+ * @package   GSB
+ * @author    Réseau CERTA <contact@reseaucerta.org>
+ * @author    José GIL <jgil@ac-nice.fr>
+ * @copyright 2017 Réseau CERTA
+ * @license   Réseau CERTA
+ * @version   GIT: <0>
+ * @link      http://www.reseaucerta.org Contexte « Laboratoire GSB »
+ */
+$action = filter_input(INPUT_GET, 'action', FILTER_SANITIZE_STRING);
+
+$lesVisiteurs = $pdo->getLesVisiteurs();
+
+switch ($action) {
+    case 'selectionnerVisiteur':
+        include 'vues/v_listeVisiteursMois.php';
+        break;
+
+    case 'selectionnerMois':
+        $_SESSION['lstVisiteur'] = filter_input(INPUT_POST, 'lstVisiteur', FILTER_SANITIZE_STRING);
+        $leVisiteur = $_SESSION['lstVisiteur'];
+        $lesMois = $pdo->getLesMoisClotures($leVisiteur);
+        include 'vues/v_listeVisiteursMois.php';
+        if (empty($lesMois)) {
+            ajouterErreur('Pas de fiches de frais cloturées pour ce visiteur');
+            include 'vues/v_erreurs.php';
+        }
+        break;
+
+    case 'voirFicheFrais':
+        $_SESSION['lstMois'] = filter_input(INPUT_POST, 'lstMois', FILTER_SANITIZE_STRING);
+        $leVisiteur = $_SESSION['lstVisiteur'];
+        $lesMois = $pdo->getLesMoisClotures($leVisiteur);
+        $leMois = $_SESSION['lstMois'];
+        include 'vues/v_listeVisiteursMois.php';
+        $lesFraisForfait = $pdo->getLesFraisForfait($leVisiteur, $leMois);
+        $lesFraisHorsForfait = $pdo->getLesFraisHorsForfaitNonRefuses($leVisiteur, $leMois);
+        if (empty($lesFraisForfait) && empty($lesFraisHorsForfait)) {
+            ajouterErreur('Pas de fiche de frais pour ce visiteur');
+            include 'vues/v_erreurs.php';
+        } else {
+            $lesInfosFicheFrais = $pdo->getLesInfosFicheFrais($leVisiteur, $leMois);
+            $nbJustificatifs = $lesInfosFicheFrais['nbJustificatifs'];
+            include 'vues/v_validerFrais.php';
+        }
+        break;
+
+    case 'majFraisForfait':
+        $lesFrais = filter_input(INPUT_POST, 'lesFrais', FILTER_DEFAULT, FILTER_FORCE_ARRAY);
+        $leVisiteur = $_SESSION['lstVisiteur'];
+        $lesMois = $pdo->getLesMoisClotures($leVisiteur);
+        $leMois = $_SESSION['lstMois'];
+        include 'vues/v_listeVisiteursMois.php';
+        if (lesQteFraisValides($lesFrais)) {
+            $pdo->majFraisForfait($leVisiteur, $leMois, $lesFrais);
+            // A afficher seulement quelques secondes
+            ajouterModification('Modifications prises en compte');
+            include 'vues/v_modifications.php';
+            // Refresh à faire
+        } else {
+            ajouterErreur('Les valeurs doivent être numérique');
+            include 'vues/v_erreurs.php';
+        }
+        $lesFraisHorsForfait = $pdo->getLesFraisHorsForfaitNonRefuses($leVisiteur, $leMois);
+        $lesFraisForfait = $pdo->getLesFraisForfait($leVisiteur, $leMois);
+        $lesInfosFicheFrais = $pdo->getLesInfosFicheFrais($leVisiteur, $leMois);
+        $nbJustificatifs = $lesInfosFicheFrais['nbJustificatifs'];
+        include 'vues/v_validerFrais.php';
+        break;
+
+    case 'majFraisHorsForfait':
+        $leVisiteur = $_SESSION['lstVisiteur'];
+        $lesMois = $pdo->getLesMoisClotures($leVisiteur);
+        $leMois = $_SESSION['lstMois'];
+        include 'vues/v_listeVisiteursMois.php';
+        $id = filter_input(INPUT_POST, 'idFraisHF', FILTER_SANITIZE_STRING);
+        $libelle = filter_input(INPUT_POST, 'libelleFraisHF', FILTER_SANITIZE_STRING);
+        $montant = filter_input(INPUT_POST, 'montantFraisHF', FILTER_SANITIZE_STRING);
+        $date = filter_input(INPUT_POST, 'dateFraisHF', FILTER_SANITIZE_STRING);
+
+        if (isset($_POST['corriger'])) {
+            $pdo->majFraisHorsForfait($id, $libelle, $date, $montant);
+            // A afficher seulement quelques secondes
+            ajouterModification('Modifications prises en compte');
+            include 'vues/v_modifications.php';
+        }
+        if (isset($_POST['refuser'])) {
+            // A changer pour mettre un champs état plutôt que de le mettre 
+            // au début du libellé ?
+            $pdo->refuseFraisHorsForfait($id);
+            // A afficher seulement quelques secondes
+            ajouterModification('Le frais a été refusé');
+            include 'vues/v_modifications.php';
+        }
+
+        if (isset($_POST['reporter'])) {
+            $moisSuivant = strval($leMois + 1);
+            if ($pdo->estPremierFraisMois($leVisiteur, $moisSuivant)) {
+                $pdo->creeNouvellesLignesFrais($leVisiteur, $moisSuivant);
+            }
+            $pdo->supprimerFraisHorsForfait($id, $leMois);
+            $pdo->creeNouveauFraisHorsForfait($leVisiteur, $moisSuivant, $libelle, $date, $montant);
+        }
+        $lesFraisHorsForfait = $pdo->getLesFraisHorsForfaitNonRefuses($leVisiteur, $leMois);
+        $lesFraisForfait = $pdo->getLesFraisForfait($leVisiteur, $leMois);
+        $lesInfosFicheFrais = $pdo->getLesInfosFicheFrais($leVisiteur, $leMois);
+        $nbJustificatifs = $lesInfosFicheFrais['nbJustificatifs'];
+        include 'vues/v_validerFrais.php';
+        break;
+
+    case 'valideFicheFrais':
+        $leVisiteur = $_SESSION['lstVisiteur'];
+        $lesMois = $pdo->getLesMoisClotures($leVisiteur);
+        $leMois = $_SESSION['lstMois'];
+        $totalFraisF = ($pdo->getTotalMontantFraisForfait($leVisiteur, $leMois));
+        $totalFraisHF = $pdo->getTotalMontantFraisHorsForfait($leVisiteur, $leMois);
+        $montant = strval(
+            ($totalFraisF['totalFraisF'] + $totalFraisHF['totalFraisHF'])
+        );
+        $nbJustificatifs = filter_input(INPUT_POST, 'nbJustificatifs', FILTER_SANITIZE_STRING);
+        $pdo->majNbJustificatifs($leVisiteur, $leMois, $nbJustificatifs);
+        $pdo->majEtatFicheFraisMontant($leVisiteur, $leMois, 'VA', $montant);
+        $lesMois = $pdo->getLesMoisClotures($leVisiteur);
+        include 'vues/v_listeVisiteursMois.php';
+        // A afficher seulement quelques secondes
+        ajouterModification('La Fiche de frais a été validée');
+        include 'vues/v_modifications.php';
+        if (empty($lesMois)) {
+            ajouterErreur('Pas de fiches de frais cloturées pour ce visiteur');
+            include 'vues/v_erreurs.php';
+        }
+        break;
+}

@@ -1,0 +1,81 @@
+<?php
+
+
+/**
+ * Gestion du Hashage des mots de passes stockés
+ *
+ * PHP Version 7
+ *
+ * @category  PPE
+ * @package   GSB
+ * @author    Réseau CERTA <contact@reseaucerta.org>
+ * @author    José GIL <jgil@ac-nice.fr>
+ * @copyright 2017 Réseau CERTA
+ * @license   Réseau CERTA
+ * @version   GIT: <0>
+ * @link      http://www.reseaucerta.org Contexte « Laboratoire GSB »
+ */
+$pdo = new PDO('mysql:host=localhost;dbname=gsb_frais', 'root', '');
+$pdo->query('SET CHARACTER SET utf8');
+
+$requetePrepare = $pdo->prepare(
+    'SELECT visiteur.id, '
+    . 'visiteur.mdp '
+    . 'FROM visiteur'
+);
+$requetePrepare->execute();
+$lesLignes = $requetePrepare->fetchAll();
+$lesNouvellesLignes = array();
+foreach ($lesLignes as $uneLigne) {
+    $leLogin = $uneLigne['id'];
+    $leMDP = $uneLigne['mdp'];
+    $leNouveauMDP = password_hash($leMDP, PASSWORD_BCRYPT);
+    array_push(
+        $lesNouvellesLignes, [
+        'id' => $leLogin,
+        'MDP' => $leNouveauMDP
+        ]
+    );
+}
+foreach ($lesNouvellesLignes as $uneLigne) {
+    $requetePrepare = $pdo->prepare(
+        'UPDATE visiteur '
+        . 'SET visiteur.mdp = :unMDP '
+        . 'WHERE visiteur.id = :unVisiteur'
+    );
+    $requetePrepare->bindParam(':unVisiteur', $uneLigne['id'], PDO::PARAM_STR);
+    $requetePrepare->bindParam(':unMDP', $uneLigne['MDP'], PDO::PARAM_STR);
+    $requetePrepare->execute();
+}
+
+
+
+$requetePrepare = $pdo->prepare(
+    'SELECT comptable.id, '
+    . 'comptable.mdp '
+    . 'FROM comptable'
+);
+$requetePrepare->execute();
+$lesLignes = $requetePrepare->fetchAll();
+$lesNouvellesLignes = array();
+foreach ($lesLignes as $uneLigne) {
+    $leLogin = $uneLigne['id'];
+    $leMDP = $uneLigne['mdp'];
+    $leNouveauMDP = password_hash($leMDP, PASSWORD_BCRYPT);
+    array_push(
+        $lesNouvellesLignes, [
+        'id' => $leLogin,
+        'MDP' => $leNouveauMDP
+        ]
+    );
+}
+foreach ($lesNouvellesLignes as $uneLigne) {
+    $requetePrepare = $pdo->prepare(
+        'UPDATE comptable '
+        . 'SET comptable.mdp = :unMDP '
+        . 'WHERE comptable.id = :unComptable'
+    );
+    $requetePrepare->bindParam(':unComptable', $uneLigne['id'], PDO::PARAM_STR);
+    $requetePrepare->bindParam(':unMDP', $uneLigne['MDP'], PDO::PARAM_STR);
+    $requetePrepare->execute();
+}
