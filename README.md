@@ -34,3 +34,7 @@ Voici quelques comptes comptable afin de réaliser des tests:
   - Dylan Le Flour
     - login: dleflour
     - password: gsbAdmin
+
+Application Mobile: https://github.com/DyRize/GSB_AppliFrais
+
+Application C#: https://github.com/DyRize/GSB_GestionCloture
